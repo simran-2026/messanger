@@ -4,22 +4,22 @@ const { connect } = require('../../lib/db');
 const Thread = require('../../models/Thread');
 const Message = require('../../models/Message');
 
-// This function will be called by the event listener in discord.js provider
+// This function will be called by the event listener we set up on the client
 async function handleNewMessage(msg) {
-  // Ignore messages from bots to prevent loops
+  // Ignore messages from other bots
   if (msg.author.bot) return;
 
   try {
     await connect();
 
     // Log the incoming message for debugging
-    console.log('Discord msg:', {
+    console.log('Discord msg received and processing:', {
       channelId: msg.channel.id,
       from: msg.author.id,
       text: msg.content,
     });
 
-    // All incoming messages are assigned to the DEMO_USER_ID for now
+    // All incoming messages are assigned to the DEMO_USER_ID
     const demoUserId = new mongoose.Types.ObjectId(process.env.DEMO_USER_ID);
 
     const provider = 'discord';
@@ -66,16 +66,17 @@ async function handleNewMessage(msg) {
 
     // Update the last message time for the thread
     await Thread.updateOne({ _id: thread._id }, { $set: { lastMessageAt: new Date() } });
+    console.log(`SUCCESS: Saved Discord message from ${msg.author.username} to the database.`);
 
   } catch (err) {
     console.error('Error handling Discord message:', err);
   }
 }
 
-// Update the shared client to use the message handler
+// Attach the message handler to the Discord client's 'messageCreate' event
 client.on('messageCreate', handleNewMessage);
 
-// The webhook endpoint itself just confirms the bot's status
+// The webhook endpoint itself just confirms the bot's status for Vercel
 module.exports = (req, res) => {
   if (client.isReady()) {
     res.status(200).send(`Discord bot is logged in as ${client.user.tag} and listening for messages.`);
